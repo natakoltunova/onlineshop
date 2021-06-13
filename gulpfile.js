@@ -70,7 +70,7 @@ function css() {
   return src(path.src.css)
     .pipe(
       scss({
-        outputStyle: 'expanded', //for scss files are not compressed
+        outputStyle: 'expanded', // for scss files are not compressed
       })
     )
     .pipe(group_media())
