@@ -36,6 +36,12 @@ let scss = require('gulp-sass')
 let autoprefixer = require('gulp-autoprefixer')
 let group_media = require('gulp-group-css-media-queries') //grouping mediaqueries and placing it at the end of the file
 let clean_css = require('gulp-clean-css') //it cleans and compresses css-file
+let rename = require('gulp-rename') //creation of two css-files: compressed and regular (for customer)
+let uglify = require('gulp-uglify-es').default
+let imagemin = require('gulp-imagemin')
+let webp = require('gulp-webp')
+let webphtml = require('gulp-webp-html')
+let webpcss = require('gulp-webpcss')
 
 //function that refreshes the page
 function browserSync() {
@@ -50,19 +56,22 @@ function browserSync() {
   })
 }
 
-//function for working html files
-function html() {
-  return src(path.src.html) //variable (object) 'path', key 'src', value 'html' = the root of the project source folder
-    .pipe(fileinclude()) //collecting files
-    .pipe(dest(path.build.html)) //transferring files from the source folder to the folder Dist
-    .pipe(browsersync.stream()) //variable 'dest' + path to result folder
-  //commands for gulp, which he must execute during the installation of plugins and add-ons
-}
-
 //catching changes
 function watchFiles() {
   gulp.watch([path.watch.html], html) //function html
   gulp.watch([path.watch.css], css) //function css
+  gulp.watch([path.watch.js], js) //function js
+  gulp.watch([path.watch.img], images) //function images
+}
+
+//function for working html files
+function html() {
+  return src(path.src.html) //variable (object) 'path', key 'src', value 'html' = the root of the project source folder
+    .pipe(fileinclude()) //collecting
+    .pipe(webphtml())
+    .pipe(dest(path.build.html)) //transferring files from the source folder to the folder Dist
+    .pipe(browsersync.stream()) //variable 'dest' + path to result folder
+  //commands for gulp, which he must execute during the installation of plugins and add-ons
 }
 
 //function for coping css files in Dist (with plugins)
@@ -80,8 +89,51 @@ function css() {
         cascade: true, //autoprefexer writing style
       })
     )
+    .pipe(webpcss())
+    .pipe(dest(path.build.css)) //unloading css file before compression
     .pipe(clean_css())
-    .pipe(dest(path.build.css))
+    .pipe(
+      rename({
+        extname: '.min.css', //compressed css file
+      })
+    )
+    .pipe(dest(path.build.css)) //unloading compressed css file
+    .pipe(browsersync.stream())
+}
+
+//function for processing of js-files
+function js() {
+  return src(path.src.js)
+    .pipe(fileinclude()) //collecting files
+    .pipe(dest(path.build.js)) //transferring files from the source folder to the folder Dist
+    .pipe(uglify()) //compressing js file
+    .pipe(
+      rename({
+        extname: '.min.js', //compressed js file
+      })
+    )
+    .pipe(dest(path.build.js)) //unloading compressed js file
+    .pipe(browsersync.stream())
+}
+
+function images() {
+  return src(path.src.img)
+    .pipe(
+      webp({
+        quality: 70,
+      })
+    )
+    .pipe(dest(path.build.img)) //unloading of processed photos
+    .pipe(src(path.src.img)) //referring back to the original photos
+    .pipe(
+      imagemin({
+        progressive: true,
+        svgoPlugins: [{ removeViewBox: false }],
+        interlaced: true,
+        optimizationLevel: 3, // compression level: 0 to 7
+      })
+    )
+    .pipe(dest(path.build.img)) //transferring files from the source folder to the folder Dist
     .pipe(browsersync.stream())
 }
 
@@ -90,11 +142,13 @@ function clean() {
   return del(path.clean) //plugin del with path to Dist inside
 }
 
-let build = gulp.series(clean, gulp.parallel(css, html)) //functions clean(), css(), html() (css&html are run in parallel)
+let build = gulp.series(clean, gulp.parallel(js, css, html, images)) //functions clean(), css(), html(), js(), images() (css&html&js&images are run in parallel)
 let watch = gulp.parallel(build, watchFiles, browserSync)
 
 exports.html = html
 exports.css = css
+exports.js = js
+exports.images = images
 exports.build = build
 exports.watch = watch
 exports.default = watch
