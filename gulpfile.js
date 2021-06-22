@@ -1,6 +1,8 @@
 let project_folder = 'dist' //folder with results of gulp's working (4customer)
 let source_folder = 'src'
 
+let fs = require('fs')
+
 let path = {
   //paths to files and folders
   build: {
@@ -42,6 +44,10 @@ let imagemin = require('gulp-imagemin')
 let webp = require('gulp-webp')
 let webphtml = require('gulp-webp-html')
 let webpcss = require('gulp-webpcss')
+let svgSprite = require('gulp-svg-sprite')
+let ttf2woff = require('gulp-ttf2woff')
+let ttf2woff2 = require('gulp-ttf2woff2')
+let fonter = require('gulp-fonter')
 
 //function that refreshes the page
 function browserSync() {
@@ -55,6 +61,73 @@ function browserSync() {
     notify: false, //disable browser notification
   })
 }
+
+function fonts() {
+  src(path.src.fonts)
+    .pipe(ttf2woff()) //plugin ttf2woff
+    .pipe(dest(path.build.fonts)) // upload to the resulting folder
+  return src(path.src.fonts).pipe(ttf2woff2()).pipe(dest(path.build.fonts))
+}
+
+// the task is launched (запускается) via command 'gulp svgSprite' in a separate terminal
+// if necessary constant execution of the task, it must be wrapped in a function (like html, css, etc.)
+gulp.task('svgSprite', function () {
+  return gulp
+    .src([source_folder + '/iconsprite/*.svg'])
+    .pipe(
+      svgSprite({
+        mode: {
+          stack: {
+            sprite: '../icons/icons.svg', //sprite file name + path where it is unloaded
+          },
+        },
+      })
+    )
+    .pipe(dest(path.build.img)) //upload the sprite to the image folder
+})
+
+// the task is launched via command 'otf2ttf'
+gulp.task('otf2ttf', function () {
+  return src([source_folder + '/fonts/*.otf']).pipe(
+    fonter({
+      formats: ['ttf'],
+    }).pipe(dest(source_folder + '/fonts/')) // uploading the result to the source folder
+  )
+})
+
+//for writing and connecting fonts to style.css
+function fontsStyle() {
+  let file_content = fs.readFileSync(source_folder + '/css/fonts.scss')
+  if (file_content == '') {
+    fs.writeFile(source_folder + '/css/fonts.scss', cb)
+    return (
+      fs.readdir(path.build.fonts),
+      function (arr, items) {
+        if (items) {
+          let c_fontname
+          for (let i = 0; i < items.length; i++) {
+            let fontname = items[i].split('.')
+            fontname = fontname[0]
+            if (c_fontname != fontname) {
+              fs.appendFile(
+                source_folder + '/scss/fonts.scss',
+                '@include font("' +
+                  fontname +
+                  '", "' +
+                  fontname +
+                  '", "400", "normal");\r\n',
+                cb
+              )
+            }
+            c_fontname = fontname
+          }
+        }
+      }
+    )
+  }
+}
+
+function cb() {}
 
 //catching changes
 function watchFiles() {
@@ -142,13 +215,14 @@ function clean() {
   return del(path.clean) //plugin del with path to Dist inside
 }
 
-let build = gulp.series(clean, gulp.parallel(js, css, html, images)) //functions clean(), css(), html(), js(), images() (css&html&js&images are run in parallel)
+let build = gulp.series(clean, gulp.parallel(js, css, html, images, fonts)) //functions clean(), css(), html(), js(), images(), fonts() (css&html&js&images&fonts are run in parallel)
 let watch = gulp.parallel(build, watchFiles, browserSync)
 
 exports.html = html
 exports.css = css
 exports.js = js
 exports.images = images
+exports.fonts = fonts
 exports.build = build
 exports.watch = watch
 exports.default = watch
