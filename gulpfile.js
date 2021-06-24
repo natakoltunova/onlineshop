@@ -10,12 +10,14 @@ let path = {
     css: project_folder + '/css/',
     js: project_folder + '/js/',
     img: project_folder + '/img/',
+    fonts: project_folder + '/fonts/',
   },
   src: {
     html: [source_folder + '/*.html', '!' + source_folder + '/_*.html'],
     css: source_folder + '/css/style.scss',
     js: source_folder + '/js/script.js',
     img: source_folder + '/img/**/*.{jpg,png,svg,gif,ico,webp}', //just pictures are submitted
+    fonts: project_folder + '/fonts/*.ttf',
   },
   watch: {
     //paths to files that need to listen to constantly
@@ -95,7 +97,7 @@ gulp.task('otf2ttf', function () {
   )
 })
 
-//for writing and connecting fonts to style.css
+//for writing and connecting fonts to style.css (writes files names with converted fonts to file Fonts)
 function fontsStyle() {
   let file_content = fs.readFileSync(source_folder + '/css/fonts.scss')
   if (file_content == '') {
@@ -215,7 +217,11 @@ function clean() {
   return del(path.clean) //plugin del with path to Dist inside
 }
 
-let build = gulp.series(clean, gulp.parallel(js, css, html, images, fonts)) //functions clean(), css(), html(), js(), images(), fonts() (css&html&js&images&fonts are run in parallel)
+let build = gulp.series(
+  clean,
+  gulp.parallel(js, css, html, images, fonts),
+  fontsStyle
+) //functions clean(), css(), html(), js(), images(), fonts() (css&html&js&images&fonts are run in parallel)
 let watch = gulp.parallel(build, watchFiles, browserSync)
 
 exports.html = html
@@ -223,6 +229,7 @@ exports.css = css
 exports.js = js
 exports.images = images
 exports.fonts = fonts
+exports.fontsStyle = fontsStyle
 exports.build = build
 exports.watch = watch
 exports.default = watch
